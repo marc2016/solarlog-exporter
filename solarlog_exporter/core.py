@@ -5,26 +5,34 @@ from ftplib import FTP
 from time import sleep
 from typing import Set
 
-from influxdb import InfluxDBClient
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS
 
 from solarlog_exporter import file_handler, settings
 from solarlog_exporter.file_handler import (get_last_record_time_influxdb,
                                             is_import_file)
 from solarlog_exporter.parser import ConfigParser, DataParser
 
-CHUNK_SIZE = 10000
+CHUNK_SIZE = 100000
 
 
 def start_import(
-    path, influx_host, influx_port, influx_username, influx_password, influx_db
+    path,
+    influx_host,
+    influx_port,
+    influx_org,
+    influx_bucket,
+    influx_token
 ):
-    """Start import with directory path"""
-    influx_client = InfluxDBClient(
-        influx_host, influx_port, influx_username, influx_password, influx_db
-    )
+    client = InfluxDBClient(
+        url=influx_host+":"+influx_port,
+        token=influx_token,
+        org=influx_org)
+    write_api = client.write_api(write_options=SYNCHRONOUS)
+    query_api = client.query_api()
 
     inverters = None
-    last_record_time = get_last_record_time_influxdb(influx_client)
+    last_record_time = get_last_record_time_influxdb(query_api, influx_bucket)
     logging.debug("Starting..")
     logging.debug("Used directory: %s", path)
     logging.debug("Last Record %s", last_record_time)
@@ -52,26 +60,29 @@ def start_import(
         inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
     )
     for chunk in datapoints:
-        influx_client.write_points(chunk)
+        write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
         logging.debug("Datapoints in influxdb saved")
+    write_api.close()
 
 
 def start_ftp_import(
     path,
     influx_host,
     influx_port,
-    influx_username,
-    influx_password,
-    influx_db,
+    influx_org,
+    influx_bucket,
+    influx_token,
     mon_for_changes=False
 ):
-    """Start import with directory path"""
-    influx_client = InfluxDBClient(
-        influx_host, influx_port, influx_username, influx_password, influx_db
-    )
+    client = InfluxDBClient(
+        url=influx_host+":"+influx_port,
+        token=influx_token,
+        org=influx_org)
+    write_api = client.write_api(write_options=SYNCHRONOUS)
+    query_api = client.query_api()
 
     inverters = None
-    last_record_time = get_last_record_time_influxdb(influx_client)
+    last_record_time = get_last_record_time_influxdb(query_api, influx_bucket)
     logging.debug("Starting..")
     logging.debug("Used directory: %s", path)
     logging.debug("Last Record %s", last_record_time)
@@ -81,7 +92,7 @@ def start_ftp_import(
 
     with FTP(settings.FTP_HOST) as ftp:
         ftp.login(user=settings.FTP_USERNAME or "", passwd=settings.FTP_PASSWORD or "")
-        ftp.encoding='utf-8'
+        ftp.encoding='ISO-8859-1'
         ftp.sendcmd('OPTS UTF8 ON')
 
         # Read Configs at start
@@ -109,8 +120,9 @@ def start_ftp_import(
                     inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
                 )
                 for chunk in datapoints:
-                    influx_client.write_points(chunk)
+                    write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
                     logging.debug("Datapoints in influxdb saved")
+                write_api.close()
         else:
             inverters = config_parser.get_inverters()
             if not inverters:
@@ -130,8 +142,9 @@ def start_ftp_import(
                 inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
             )
             for chunk in datapoints:
-                influx_client.write_points(chunk)
+                write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
                 logging.debug("Datapoints in influxdb saved")
+            write_api.close()
 
 
 def changemon_ftp_directory(ftp: FTP, directory="./"):
@@ -147,6 +160,7 @@ def changemon_ftp_directory(ftp: FTP, directory="./"):
         # read current date again
         add.add('min_day.js')
         add.add('days.js')
+        add.add('days_hist.js')
 
         if add:
             yield add

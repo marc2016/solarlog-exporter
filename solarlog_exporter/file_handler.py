@@ -26,21 +26,28 @@ def is_import_file(filename, last_record_time):
     return False
 
 
-def get_last_record_time_influxdb(influx_client):
-    query = "SELECT * FROM {} WHERE system = '{}' ORDER BY time DESC LIMIT 1;".format(
-        MinDatapoint.influx_measurment_name, settings.SOLAR_LOG_NAME
-    )
+def get_last_record_time_influxdb(query_api, influx_bucket):
+    # query = "SELECT * FROM {} WHERE system = '{}' ORDER BY time DESC LIMIT 1;".format(
+    #     MinDatapoint.influx_measurment_name, settings.SOLAR_LOG_NAME
+    # )
+    query = f'''
+            from(bucket: "{influx_bucket}")
+              |> range(start: -1h)
+              |> filter(fn: (r) => r._measurement == "{MinDatapoint.influx_measurment_name}" and r.system == "{settings.SOLAR_LOG_NAME}")
+              |> sort(columns: ["_time"], desc: true)
+              |> limit(n: 1)
+            '''
 
-    result_last_point_query = list(influx_client.query(query))
+    result_last_point_query = list(query_api.query(query))
 
     if result_last_point_query:
-        time = result_last_point_query[0][0]["time"]
+        time = result_last_point_query[0].records[0].values["_time"]
         logging.debug("Last record %s", time)
-        return datetime.fromisoformat(time[:-1]).astimezone(pytz.utc)
+        return time
 
     # no last record found
     logging.warning("No last record found")
-    return datetime.now(pytz.utc) - timedelta(days=1 * 365)
+    return datetime(2000, 1,1)
 
 
 def chunks(input_list, n):

@@ -210,6 +210,8 @@ class DayDatapoint(Datapoint):
         self._pdc_min_data.append({"time": time, "pac": pac, "pdc": pdc, "eday": eday})
 
     def calculate_values(self):
+        if len(self._pdc_min_data) <= 0:
+            return
         ist_ertrag_ac_yield = self._pdc_min_data[0]['eday']
         ist_ertrag_ac = 0.0
         pdc = 0.0

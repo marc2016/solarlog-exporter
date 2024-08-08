@@ -22,7 +22,7 @@ class Parser:
             logging.error("File is not under path %s", file_path)
             return
 
-        file = open(file_path, "r", encoding='utf-8')
+        file = open(file_path, "r", encoding='ISO-8859-1')
         for line in file:
             self._parse_line(line)
         file.close()
@@ -173,7 +173,8 @@ class DataParser(Parser):
             values = parts[i].split(";")
 
             if file_type == FileType.MIN:
-                datapoint = MinDatapoint(date_time, values[0], values[1], values[2], values[3],
+                datapoint = MinDatapoint(date_time, values[0], values[1], values[2],
+                                         values[3] if (len(values) > 3) else 0,
                                          values[4] if (len(values) > 4) else 0)
                 self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
             elif file_type == FileType.DAY:
