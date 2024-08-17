@@ -93,7 +93,7 @@ def start_ftp_import(
     inverters = None
     with FTP(settings.FTP_HOST) as ftp:
         ftp.login(user=settings.FTP_USERNAME or "", passwd=settings.FTP_PASSWORD or "")
-        ftp.encoding='UTF-8'
+        ftp.encoding='ISO-8859-1'
         ftp.sendcmd('OPTS UTF8 ON')
 
         # Read Configs at start
