@@ -90,9 +90,10 @@ def start_ftp_import(
     if not settings.FTP_HOST:
         raise Exception("FTP_HOST not defined!")
 
+    inverters = None
     with FTP(settings.FTP_HOST) as ftp:
         ftp.login(user=settings.FTP_USERNAME or "", passwd=settings.FTP_PASSWORD or "")
-        ftp.encoding='ISO-8859-1'
+        ftp.encoding='UTF-8'
         ftp.sendcmd('OPTS UTF8 ON')
 
         # Read Configs at start
@@ -119,9 +120,11 @@ def start_ftp_import(
                 datapoints = file_handler.chunks(
                     inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
                 )
+                influxCount = 0
                 for chunk in datapoints:
                     write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
-                    logging.debug("Datapoints in influxdb saved")
+                    logging.debug("Datapoints in influxdb saved: %s", influxCount)
+                    influxCount += 1
                 write_api.close()
         else:
             inverters = config_parser.get_inverters()
@@ -131,20 +134,21 @@ def start_ftp_import(
             data_parser = DataParser(inverters, last_record_time)
 
             for file in ftp.nlst(path):
-                if is_import_file(file, last_record_time):
-                    logging.debug("Read file %s", file)
-                    data_parser.parse_ftp_file(ftp, path + "/" + file)
+                fileName = os.path.basename(file)
+                if is_import_file(fileName, last_record_time):
+                    logging.debug("Read file %s", fileName)
+                    data_parser.parse_ftp_file(ftp, path + "/" + fileName)
 
             logging.debug("Daily and monthly data read..")
 
-            # Store it in Influx DB
-            datapoints = file_handler.chunks(
-                inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
-            )
-            for chunk in datapoints:
-                write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
-                logging.debug("Datapoints in influxdb saved")
-            write_api.close()
+    # Store it in Influx DB
+    datapoints = file_handler.chunks(
+        inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
+    )
+    for chunk in datapoints:
+        write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
+        logging.debug("Datapoints in influxdb saved")
+    write_api.close()
 
 
 def changemon_ftp_directory(ftp: FTP, directory="./"):

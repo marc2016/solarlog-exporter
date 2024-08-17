@@ -18,6 +18,7 @@ class FileType:
     DAY = 2
     MONTH = 3
     YEAR = 4
+    MIN_STR = 5
 
     @staticmethod
     def get_filetype(line):
@@ -37,6 +38,12 @@ class Inverter:
     def __init__(self, inverter_config, system):
         self.datapoints_min = {}
         self.datapoints_day = {}
+        self.datapoints_string = {}
+        if len(inverter_config) > 2:
+            for str in inverter_config[2]:
+                self.datapoints_string[str] = {}
+        else:
+            self.datapoints_string["String 1"] = {}
 
         self.name = inverter_config[0][4]
         self.system = system
@@ -47,7 +54,7 @@ class Inverter:
         if len(inverter_config) > 1:
             self.group = inverter_config[1]
         else:
-            self.group = None
+            self.group = "nogroup"
 
     def add_datapoint(self, datapoint, last_record_time):
         if datapoint.date_time.date() < last_record_time.date():
@@ -55,30 +62,26 @@ class Inverter:
 
         if datapoint.type == FileType.MIN:
             self.datapoints_min[datapoint.get_date_time_as_timestring()] = datapoint
+        if datapoint.type == FileType.MIN_STR:
+            self.datapoints_string[datapoint.name][datapoint.get_date_time_as_timestring()] = datapoint
         elif datapoint.type == FileType.DAY:
             self.datapoints_day[datapoint.get_date_time_as_datestring()] = datapoint
 
     def get_datapoints_to_influx(self):
-        self._add_values_to_datapoint()
         influx_datapoints = []
 
         for _, value in self.datapoints_min.items():
             influx_datapoints.append(value.get_datapoint_to_influx(self))
+
+        for key, value in self.datapoints_string.items():
+            for k,v in value.items():
+                influx_datapoints.append(v.get_datapoint_to_influx(self))
 
         for _, value in self.datapoints_day.items():
             influx_datapoints.append(value.get_datapoint_to_influx(self))
 
         return influx_datapoints
 
-    def _add_values_to_datapoint(self):
-        for datapoint_min in self.datapoints_min.values():
-            if datapoint_min.get_date_time_as_datestring() in self.datapoints_day:
-                self.datapoints_day[
-                    datapoint_min.get_date_time_as_datestring()
-                ].add_min_datapoint(datapoint_min.date_time, datapoint_min.pac, datapoint_min.pdc, datapoint_min.eday)
-
-        for _, value in self.datapoints_day.items():
-            value.calculate_values()
 
 
 class InverterList:
@@ -148,14 +151,12 @@ class MinDatapoint(Datapoint):
     influx_measurment_name = "solarlog_min"
     type = FileType.MIN
 
-    def __init__(self, min_time, pac, pdc, eday, udc, temperature):
+    def __init__(self, min_time, pac, eday, temperature):
         self.date_time = self._timezone.localize(
             datetime.strptime(min_time, "%d.%m.%y %H:%M:%S")
         )
         self.pac = float(pac)
-        self.pdc = float(pdc)
         self.eday = float(eday)
-        self.udc = float(udc)
         self.temperature = int(temperature)
 
     def get_datapoint_to_influx(self, inverter):
@@ -169,9 +170,7 @@ class MinDatapoint(Datapoint):
             "time": self.get_date_time_for_influxdb(),
             "fields": {
                 "Pac": self.pac,
-                "Pdc": self.pdc,
                 "Eday": self.eday,
-                "Udc": self.udc,
                 "temperature": self.temperature,
             },
         }
@@ -185,14 +184,12 @@ class DayDatapoint(Datapoint):
     influx_measurment_name = "solarlog_day"
     type = FileType.DAY
 
-    def __init__(self, day_time, pac):
+    def __init__(self, day_time, eday, pac_max):
         self.date_time = self._timezone.localize(
             datetime.strptime(day_time, "%d.%m.%y")
         )
-        self.pac = float(pac)
-        self._pdc_min_data = []
-        self.efficiency = float(0)
-        self.pdc = float(0)
+        self.eday = float(eday)
+        self.pac_max = float(pac_max)
 
     def get_datapoint_to_influx(self, inverter):
         return {
@@ -203,30 +200,37 @@ class DayDatapoint(Datapoint):
                 "group": inverter.group,
             },
             "time": self.get_date_time_for_influxdb(),
-            "fields": {"Pac": self.pac, "Pdc": self.pdc, "efficiency": self.efficiency},
+            "fields": {"Eday": self.eday, "PacMax": self.pac_max},
         }
 
-    def add_min_datapoint(self, time, pac, pdc, eday):
-        self._pdc_min_data.append({"time": time, "pac": pac, "pdc": pdc, "eday": eday})
+class StringDatapoint(Datapoint):
+    """
+    String Datapoint (String data from min_xxxx.js)
+    """
 
-    def calculate_values(self):
-        if len(self._pdc_min_data) <= 0:
-            return
-        ist_ertrag_ac_yield = self._pdc_min_data[0]['eday']
-        ist_ertrag_ac = 0.0
-        pdc = 0.0
+    influx_measurment_name = "solarlog_min_strings"
+    type = FileType.MIN_STR
 
-        for i in range(1, len(self._pdc_min_data)):
-            dt = (self._pdc_min_data[i]['time'] - self._pdc_min_data[i - 1]['time'])
-            hour_diff = abs(dt.total_seconds()) / (60.0 * 60.0)
-            pdc += self._pdc_min_data[i]['pdc'] * hour_diff
-            ist_ertrag_ac += self._pdc_min_data[i]['pac'] * hour_diff
+    def __init__(self, min_time, name, pdc, udc):
+        self.date_time = self._timezone.localize(
+            datetime.strptime(min_time, "%d.%m.%y %H:%M:%S")
+        )
+        self.pdc = float(pdc)
+        self.udc = float(udc)
+        self.name = name
 
-        if ist_ertrag_ac == 0:
-            factor = 1.0
-        else:
-            factor = ist_ertrag_ac_yield / ist_ertrag_ac
-
-        self.pdc = round(pdc * factor, 0)
-        if self.pdc != 0 and self.pac != 0:
-            self.efficiency = round((self.pac / self.pdc), 3)
+    def get_datapoint_to_influx(self, inverter):
+        return {
+            "measurement": self.influx_measurment_name,
+            "tags": {
+                "inverter": inverter.name,
+                "system": inverter.system,
+                "group": inverter.group,
+                "string": self.name
+            },
+            "time": self.get_date_time_for_influxdb(),
+            "fields": {
+                "Pdc": self.pdc,
+                "Udc": self.udc,
+            },
+        }

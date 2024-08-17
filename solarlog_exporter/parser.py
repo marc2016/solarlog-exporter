@@ -8,7 +8,7 @@ from typing import List
 import pyjsparser
 
 from solarlog_exporter import settings
-from solarlog_exporter.utils import MinDatapoint, DayDatapoint, InverterList
+from solarlog_exporter.utils import MinDatapoint, DayDatapoint, InverterList, StringDatapoint
 from solarlog_exporter.utils import FileType
 
 
@@ -43,7 +43,7 @@ class Parser:
 
 
 class ConfigParser(Parser):
-    """
+    """s
     Parser for config file (base_vars.js)
     """
 
@@ -105,6 +105,23 @@ class ConfigParser(Parser):
                                     self._config[index_1][index_2].append([])
 
                                 self._config[index_1][index_2][1].append(values)
+                        elif i["expression"]["left"]["object"]["object"]["type"] == "Identifier":
+                            # if not self._config.get(i["expression"]["left"]["object"]["object"]["name"]):
+                            #     self._config[i["expression"]["left"]["object"]["object"]["name"]] = []
+                            if i["expression"]["left"]["property"]["raw"] == "6":
+                                if i["expression"]["right"]["type"] == "Literal":
+                                    values = i["expression"]["right"]["value"]
+                                elif i["expression"]["right"]["type"] == "NewExpression":
+                                    values = []
+                                    for k in i["expression"]["right"]["arguments"]:
+                                        if k["type"] == "Literal":
+                                            values.append(k["value"])
+                                else:
+                                    values = 0
+                                wrIndex = int(i["expression"]["left"]["object"]["property"]["raw"])
+                                if len(self._config[i["expression"]["left"]["object"]["object"]["name"]][wrIndex]) == 1:
+                                    self._config[i["expression"]["left"]["object"]["object"]["name"]][wrIndex].append('')
+                                self._config[i["expression"]["left"]["object"]["object"]["name"]][wrIndex].append(values)
 
     def get_power(self):
         return self._config["HPLeistung"]
@@ -144,7 +161,10 @@ class ConfigParser(Parser):
     def get_inverter_config(self):
         default_config = self._config["WRInfo"]
         for index, item in enumerate(default_config):
-            item.append(self.get_group(index))
+            if len(item) > 1:
+                item[1] = self.get_group(index)
+            else:
+                item.append(self.get_group(index))
         return default_config
 
     def get_inverters(self):
@@ -171,14 +191,22 @@ class DataParser(Parser):
 
         for i in range(1, len(parts)):
             values = parts[i].split(";")
-
+            # AC Leistung; DC String 1; DC String 2; AC Tagesertrag; DC V String 1;DC V String 2; Temperatur
             if file_type == FileType.MIN:
-                datapoint = MinDatapoint(date_time, values[0], values[1], values[2],
-                                         values[3] if (len(values) > 3) else 0,
-                                         values[4] if (len(values) > 4) else 0)
+                stringCount = len(self._inverters.get_inverter(i - 1).datapoints_string)
+                if len(values) != stringCount*2 + 3 and len(values) != stringCount*2 + 2:
+                    continue
+                
+                datapoint = MinDatapoint(date_time, values[0], values[stringCount+1], values[(stringCount*2)+2] if (len(values) > (stringCount*2)+2) else 0)
                 self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
+                
+                index = 0
+                for key in self._inverters.get_inverter(i - 1).datapoints_string:
+                    datapoint = StringDatapoint(date_time, key, values[1+index], values[stringCount+2+index])
+                    self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
+                    index = index + 1
             elif file_type == FileType.DAY:
-                datapoint = DayDatapoint(date_time, values[0])
+                datapoint = DayDatapoint(date_time, values[0], values[1])
                 self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
             else:
                 logging.error("This filetype is not supported!")
