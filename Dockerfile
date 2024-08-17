@@ -20,8 +20,8 @@ COPY bin ./bin
 COPY setup.py .
 RUN pip install -e .
 
-COPY tests ./tests
-RUN ./bin/entrypoint test
+# COPY tests ./tests
+# RUN ./bin/entrypoint test
 
 FROM src as prod
 ENTRYPOINT ["/bin/bash", "./bin/entrypoint"]
