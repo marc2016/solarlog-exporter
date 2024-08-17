@@ -92,18 +92,14 @@ class TestInverter(TestCase):
         datapoint = MinDatapoint(
             min_time=self._time_now,
             pac=1200,
-            pdc=1100,
             eday=4000,
-            udc=1500,
             temperature=60
         )
 
         datapoint_2 = MinDatapoint(
             min_time="12.02.20 23:55:00",
             pac=1200,
-            pdc=1100,
             eday=4000,
-            udc=1500,
             temperature=60
         )
 
@@ -129,17 +125,13 @@ class TestInverter(TestCase):
         datapoint_min_1 = MinDatapoint(
             min_time=self._time_now,
             pac=1200,
-            pdc=1100,
             eday=4000,
-            udc=1500,
             temperature=60
         )
         datapoint_min_2 = MinDatapoint(
             min_time=(datetime.now() - timedelta(minutes=5)).strftime("%d.%m.%y %H:%M:%S"),
             pac=1200,
-            pdc=1100,
             eday=4000,
-            udc=1500,
             temperature=60
         )
         datapoint_day = DayDatapoint(self._date_today, "1200")
@@ -151,8 +143,6 @@ class TestInverter(TestCase):
         influx_points = inverter.get_datapoints_to_influx()
         self.assertNotEqual(influx_points, {})
         self.assertNotEqual(inverter.datapoints_day[self._date_today].pac, 0.0)
-        self.assertNotEqual(inverter.datapoints_day[self._date_today].pdc, 0.0)
-        self.assertNotEqual(inverter.datapoints_day[self._date_today].efficiency, 0.0)
 
 
 class TestMinDatapoint(TestCase):
@@ -164,9 +154,7 @@ class TestMinDatapoint(TestCase):
         datapoint_min = MinDatapoint(
             min_time=min_time.strftime("%d.%m.%y %H:%M:%S"),
             pac=1200,
-            pdc=1100,
             eday=4000,
-            udc=1500,
             temperature=60
         )
 
@@ -187,9 +175,7 @@ class TestMinDatapoint(TestCase):
                 "time": min_time.astimezone(pytz.utc).isoformat().replace('+00:00', 'Z'),
                 "fields": {
                     "Pac": 1200,
-                    "Pdc": 1100,
                     "Eday": 4000,
-                    "Udc": 1500,
                     "temperature": 60
                 }
             }
