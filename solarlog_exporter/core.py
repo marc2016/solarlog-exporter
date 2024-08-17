@@ -145,9 +145,11 @@ def start_ftp_import(
     datapoints = file_handler.chunks(
         inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
     )
+    influxCount = 0
     for chunk in datapoints:
         write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
-        logging.debug("Datapoints in influxdb saved")
+        logging.debug("Datapoints in influxdb saved: %s", influxCount)
+        influxCount += 1
     write_api.close()
 
 
