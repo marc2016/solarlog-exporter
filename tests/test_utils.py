@@ -77,7 +77,7 @@ class TestInverter(TestCase):
         self.assertEqual(inverter.system, "testsystem")
         self.assertEqual(inverter.type, "PAC7")
         self.assertEqual(inverter.power, 7800)
-        self.assertEqual(inverter.group, None)
+        self.assertEqual(inverter.group, "nogroup")
 
     def test_inverter_group(self):
         inverter_config = [
