@@ -51,7 +51,7 @@ class Inverter:
             self.name = self.name[:3] + self.name[3:].zfill(2)
         self.type = inverter_config[0][0]
         self.power = inverter_config[0][2]
-        if len(inverter_config) > 1:
+        if len(inverter_config) > 1 and inverter_config[1] != None:
             self.group = inverter_config[1]
         else:
             self.group = 'nogroup'
