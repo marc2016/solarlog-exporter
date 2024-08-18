@@ -120,7 +120,7 @@ class ConfigParser(Parser):
                                     values = 0
                                 wrIndex = int(i["expression"]["left"]["object"]["property"]["raw"])
                                 if len(self._config[i["expression"]["left"]["object"]["object"]["name"]][wrIndex]) == 1:
-                                    self._config[i["expression"]["left"]["object"]["object"]["name"]][wrIndex].append('')
+                                    self._config[i["expression"]["left"]["object"]["object"]["name"]][wrIndex].append('nogroup')
                                 self._config[i["expression"]["left"]["object"]["object"]["name"]][wrIndex].append(values)
 
     def get_power(self):
