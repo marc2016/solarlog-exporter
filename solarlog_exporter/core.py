@@ -172,4 +172,4 @@ def changemon_ftp_directory(ftp: FTP, directory="./"):
             yield add
 
         ls_prev = ls
-        sleep(20)
+        sleep(600)

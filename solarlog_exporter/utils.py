@@ -54,7 +54,7 @@ class Inverter:
         if len(inverter_config) > 1:
             self.group = inverter_config[1]
         else:
-            self.group = "nogroup"
+            self.group = None
 
     def add_datapoint(self, datapoint, last_record_time):
         if datapoint.date_time.date() < last_record_time.date():
