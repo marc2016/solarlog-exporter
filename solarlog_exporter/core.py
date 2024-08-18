@@ -100,19 +100,46 @@ def start_ftp_import(
         config_parser = ConfigParser()
         config_parser.parse_ftp_file(ftp, path + "/base_vars.js")
 
-        inverters = config_parser.get_inverters()
-        if not inverters:
-            raise Exception("No inverters in config found!")
-        logging.debug("Inverters read from config..")
-        data_parser = DataParser(inverters, last_record_time)
+        # Read Daily and Monthly Data
+        if mon_for_changes:
+            for add in changemon_ftp_directory(ftp, path):
+                inverters = config_parser.get_inverters()
+                if not inverters:
+                    raise Exception("No inverters in config found!")
+                logging.debug("Inverters read from config..")
+                data_parser = DataParser(inverters, last_record_time)
 
-        for file in ftp.nlst(path):
-            fileName = os.path.basename(file)
-            if is_import_file(fileName, last_record_time):
-                logging.debug("Read file %s", fileName)
-                data_parser.parse_ftp_file(ftp, path + "/" + fileName)
+                for file in add:
+                    if is_import_file(file, last_record_time):
+                        logging.debug("Read file %s", file)
+                        data_parser.parse_ftp_file(ftp, path + "/" + file)
 
-        logging.debug("Daily and monthly data read..")
+                logging.debug("Daily and monthly data read..")
+
+                # Store it in Influx DB
+                datapoints = file_handler.chunks(
+                    inverters.get_inverter_datapoints_to_influx(), CHUNK_SIZE
+                )
+                influxCount = 0
+                for chunk in datapoints:
+                    write_api.write(org=influx_org, bucket=influx_bucket, record=chunk)
+                    logging.debug("Datapoints in influxdb saved: %s", influxCount)
+                    influxCount += 1
+                write_api.close()
+        else:
+            inverters = config_parser.get_inverters()
+            if not inverters:
+                raise Exception("No inverters in config found!")
+            logging.debug("Inverters read from config..")
+            data_parser = DataParser(inverters, last_record_time)
+
+            for file in ftp.nlst(path):
+                fileName = os.path.basename(file)
+                if is_import_file(fileName, last_record_time):
+                    logging.debug("Read file %s", fileName)
+                    data_parser.parse_ftp_file(ftp, path + "/" + fileName)
+
+            logging.debug("Daily and monthly data read..")
 
     # Store it in Influx DB
     datapoints = file_handler.chunks(
