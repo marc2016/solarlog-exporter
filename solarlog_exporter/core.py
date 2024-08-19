@@ -13,7 +13,7 @@ from solarlog_exporter.file_handler import (get_last_record_time_influxdb,
                                             is_import_file)
 from solarlog_exporter.parser import ConfigParser, DataParser
 
-CHUNK_SIZE = 100000
+CHUNK_SIZE = 10000
 
 
 def start_import(
