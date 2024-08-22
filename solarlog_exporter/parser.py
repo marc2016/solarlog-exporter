@@ -22,7 +22,7 @@ class Parser:
             logging.error("File is not under path %s", file_path)
             return
 
-        file = open(file_path, "r", encoding='UTF-8')
+        file = open(file_path, "r", encoding='ISO-8859-1')
         for line in file:
             self._parse_line(line)
         file.close()

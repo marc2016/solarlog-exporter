@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytz
 
@@ -9,18 +9,19 @@ from solarlog_exporter.utils import MinDatapoint
 
 
 def is_import_file(filename, last_record_time):
-    since_filename = last_record_time.strftime("min%y%m%d.js")
-    today_filename = datetime.now().strftime("min%y%m%d.js")
+    pattern = r'min\d{6}\.js'
+    if re.search(pattern, filename):
+        date_str = filename[filename.index('min') + 3:filename.index('.js')]
+        date = datetime.strptime(date_str, '%y%m%d')
+        date = date.replace(tzinfo=timezone.utc)
+        if date != datetime.now() and date >= last_record_time:
+            return True
+        
 
-    if (
-        (
-            re.compile(r"^min\d{6}\.js$").match(filename)
-            and filename >= since_filename
-            and filename != today_filename
-        )
-        or filename == "min_day.js"
-        or re.compile(r"^days.*\.js$").match(filename)
-    ):
+    if ('min_day.js' in filename or
+        'days_hist.js' in filename or
+        'days.js' in filename or
+        re.search(r"^days.*\.js$", filename)):
         return True
 
     return False
@@ -32,7 +33,7 @@ def get_last_record_time_influxdb(query_api, influx_bucket):
     # )
     query = f'''
             from(bucket: "{influx_bucket}")
-              |> range(start: -1h)
+              |> range(start: 0)
               |> filter(fn: (r) => r._measurement == "{MinDatapoint.influx_measurment_name}" and r.system == "{settings.SOLAR_LOG_NAME}")
               |> sort(columns: ["_time"], desc: true)
               |> limit(n: 1)
