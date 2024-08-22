@@ -14,7 +14,9 @@ def is_import_file(filename, last_record_time):
         date_str = filename[filename.index('min') + 3:filename.index('.js')]
         date = datetime.strptime(date_str, '%y%m%d')
         date = date.replace(tzinfo=timezone.utc)
-        if date != datetime.now() and date >= last_record_time:
+        now = datetime.now()
+        now = now.replace(tzinfo=timezone.utc)
+        if date != now  and date >= last_record_time:
             return True
         
 
