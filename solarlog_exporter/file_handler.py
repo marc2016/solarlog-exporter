@@ -50,7 +50,9 @@ def get_last_record_time_influxdb(query_api, influx_bucket):
 
     # no last record found
     logging.warning("No last record found")
-    return datetime(2000, 1,1)
+    defaultDate = datetime(2000, 1,1)
+    defaultDate = defaultDate.replace(tzinfo=timezone.utc)
+    return defaultDate
 
 
 def chunks(input_list, n):
