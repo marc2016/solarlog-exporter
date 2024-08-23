@@ -155,8 +155,8 @@ class MinDatapoint(Datapoint):
         self.date_time = self._timezone.localize(
             datetime.strptime(min_time, "%d.%m.%y %H:%M:%S")
         )
-        self.pac = 0 if not pac else float(pac)
-        self.eday = 0 if not eday else float(eday)
+        self.pac = float(0) if not pac else float(pac)
+        self.eday = float(0) if not eday else float(eday)
         self.temperature = 0 if not temperature else int(temperature)
 
     def get_datapoint_to_influx(self, inverter):
@@ -188,8 +188,8 @@ class DayDatapoint(Datapoint):
         self.date_time = self._timezone.localize(
             datetime.strptime(day_time, "%d.%m.%y")
         )
-        self.eday = 0 if not eday else float(eday)
-        self.pac_max = 0 if not pac_max else float(pac_max)
+        self.eday = float(0) if not eday else float(eday)
+        self.pac_max = float(0) if not pac_max else float(pac_max)
 
     def get_datapoint_to_influx(self, inverter):
         return {
@@ -215,8 +215,8 @@ class StringDatapoint(Datapoint):
         self.date_time = self._timezone.localize(
             datetime.strptime(min_time, "%d.%m.%y %H:%M:%S")
         )
-        self.pdc = 0 if not pdc else float(pdc)
-        self.udc = 0 if not udc else float(udc)
+        self.pdc = float(0) if not pdc else float(pdc)
+        self.udc = float(0) if not udc else float(udc)
         self.name = name
 
     def get_datapoint_to_influx(self, inverter):
