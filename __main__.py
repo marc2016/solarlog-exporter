@@ -1,10 +1,13 @@
 import logging
+import signal
 import sys
+import threading
+import time
 
 from solarlog_exporter import settings
 from solarlog_exporter.core import start_ftp_import, start_import
 
-def main():
+def doImport():
     """
     Run main application with can interface
     """
@@ -28,6 +31,7 @@ def main():
     #         influx_token=settings.INFLUXDB_TOKEN,
     #     )
 
+
     # scan with ftp
     if settings.FTP_DIRECTORY:
         start_ftp_import(
@@ -42,6 +46,28 @@ def main():
 
     # raise Exception('One env variable of DIRECTORY or FTP_DIRECTORY must be defined!')
 
+e = threading.Event()
 
-if __name__ == "__main__":
-    sys.exit(main())
+class GracefulKiller:
+  kill_now = False
+  def __init__(self):
+    signal.signal(signal.SIGINT, self.exit_gracefully)
+    signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+  def exit_gracefully(self,signum, frame):
+    self.kill_now = True
+    e.set()
+    
+
+if __name__ == '__main__':
+  logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+  killer = GracefulKiller()
+  while True:
+    e.wait(timeout=600) 
+    if killer.kill_now:
+      break
+    doImport()
+    if killer.kill_now:
+      break
+
+  logging.info("End of the program. I was killed gracefully :)")
