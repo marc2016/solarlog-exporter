@@ -63,10 +63,10 @@ if __name__ == '__main__':
   logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
   killer = GracefulKiller()
   while True:
-    e.wait(timeout=600) 
     if killer.kill_now:
       break
     doImport()
+    e.wait(timeout=600)
     if killer.kill_now:
       break
 
