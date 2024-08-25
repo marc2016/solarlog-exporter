@@ -112,8 +112,8 @@ def start_ftp_import(
         filteredMinFileList = list(filter(lambda filename: is_import_min_file(filename, last_record_time), fileList))
         filteredMinFileList.sort()
         filteredDayFileList = list(filter(lambda filename: is_import_day_file(filename, last_record_time), fileList))
-        filteredMinFileList.append(filteredDayFileList)
-        for file in filteredMinFileList:
+        allFiles = filteredMinFileList + filteredDayFileList
+        for file in allFiles:
             fileCounter += 1
             fileName = os.path.basename(file)
             logging.debug(f"Read file {fileName}. {fileCounter}/{len(fileList)}")
