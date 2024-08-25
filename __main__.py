@@ -5,7 +5,7 @@ import threading
 import time
 
 from solarlog_exporter import settings
-from solarlog_exporter.core import start_ftp_import, start_import
+from solarlog_exporter.core import start_ftp_import
 
 def doImport():
     """
@@ -40,8 +40,7 @@ def doImport():
             influx_port=settings.INFLUXDB_PORT,
             influx_org=settings.INFLUXDB_ORG,
             influx_bucket=settings.INFLUXDB_BUCKET,
-            influx_token=settings.INFLUXDB_TOKEN,
-            mon_for_changes=settings.FTP_MONITOR_FOR_CHANGES
+            influx_token=settings.INFLUXDB_TOKEN
         )
 
     # raise Exception('One env variable of DIRECTORY or FTP_DIRECTORY must be defined!')

@@ -7,19 +7,22 @@ import pytz
 from solarlog_exporter import settings
 from solarlog_exporter.utils import MinDatapoint
 
+_timezone = pytz.timezone(settings.TIMEZONE)
 
-def is_import_file(filename, last_record_time):
+def is_import_min_file(filename, last_record_time):
     pattern = r'min\d{6}\.js'
     if re.search(pattern, filename):
         date_str = filename[filename.index('min') + 3:filename.index('.js')]
         date = datetime.strptime(date_str, '%y%m%d')
-        date = date.replace(tzinfo=timezone.utc)
+        date = date.replace(tzinfo=_timezone)
         now = datetime.now()
-        now = now.replace(tzinfo=timezone.utc)
+        now = now.replace(tzinfo=_timezone)
         if date != now  and date >= last_record_time:
             return True
-        
 
+    return False
+
+def is_import_day_file(filename, last_record_time):
     if ('min_day.js' in filename or
         'days_hist.js' in filename or
         'days.js' in filename or
@@ -51,7 +54,7 @@ def get_last_record_time_influxdb(query_api, influx_bucket):
     # no last record found
     logging.warning("No last record found")
     defaultDate = datetime(2000, 1,1)
-    defaultDate = defaultDate.replace(tzinfo=timezone.utc)
+    defaultDate = defaultDate.replace(tzinfo=_timezone)
     return defaultDate
 
 

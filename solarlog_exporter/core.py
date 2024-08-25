@@ -9,8 +9,7 @@ from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 from solarlog_exporter import file_handler, settings
-from solarlog_exporter.file_handler import (get_last_record_time_influxdb,
-                                            is_import_file)
+from solarlog_exporter.file_handler import (get_last_record_time_influxdb, is_import_day_file, is_import_min_file)
 from solarlog_exporter.parser import ConfigParser, DataParser
 
 CHUNK_SIZE = 10000
@@ -50,7 +49,7 @@ def start_import(
     # Read Daily and Monthly Data
     data_parser = DataParser(inverters, last_record_time)
     for file in os.listdir(path):
-        if is_import_file(file, last_record_time):
+        if is_import_min_file(file, last_record_time):
             logging.debug("Read file %s", file)
             data_parser.parse_file(path + "/" + file)
 
@@ -77,8 +76,7 @@ def start_ftp_import(
     influx_port,
     influx_org,
     influx_bucket,
-    influx_token,
-    mon_for_changes=False
+    influx_token
 ):
     client = InfluxDBClient(
         url=influx_host+":"+influx_port,
@@ -111,15 +109,16 @@ def start_ftp_import(
         importFileCounter = 0
         fileCounter = 0
         fileList = ftp.nlst(path)
-        filteredFileList = list(filter(lambda filename: is_import_file(filename, last_record_time), fileList))
-        filteredFileList.sort()
-        for file in filteredFileList:
+        filteredMinFileList = list(filter(lambda filename: is_import_min_file(filename, last_record_time), fileList))
+        filteredMinFileList.sort()
+        filteredDayFileList = list(filter(lambda filename: is_import_day_file(filename, last_record_time), fileList))
+        filteredMinFileList.append(filteredDayFileList)
+        for file in filteredMinFileList:
             fileCounter += 1
             fileName = os.path.basename(file)
-            if is_import_file(fileName, last_record_time):
-                logging.debug(f"Read file {fileName}. {fileCounter}/{len(fileList)}")
-                data_parser.parse_ftp_file(ftp, path + "/" + fileName)
-                importFileCounter += 1
+            logging.debug(f"Read file {fileName}. {fileCounter}/{len(fileList)}")
+            data_parser.parse_ftp_file(ftp, path + "/" + fileName)
+            importFileCounter += 1
             if importFileCounter >= 50:
                 writeDataToinfluxDb(inverters, influx_host, influx_port, influx_org, influx_bucket, influx_token)
                 importFileCounter = 0
