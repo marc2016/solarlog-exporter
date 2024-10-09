@@ -1,7 +1,8 @@
 from datetime import datetime
 import logging
 import os
-from ftplib import FTP
+from ftplib import FTP, error_perm
+import socket
 from time import sleep
 from typing import Set
 
@@ -96,34 +97,47 @@ def start_ftp_import(
         raise Exception("FTP_HOST not defined!")
 
     inverters = None
-    with FTP(settings.FTP_HOST) as ftp:
-        ftp.login(user=settings.FTP_USERNAME or "", passwd=settings.FTP_PASSWORD or "")
-        ftp.sendcmd('OPTS UTF8 ON')
+    try:
+        with FTP(settings.FTP_HOST) as ftp:
+            ftp.login(user=settings.FTP_USERNAME or "", passwd=settings.FTP_PASSWORD or "")
+            ftp.sendcmd('OPTS UTF8 ON')
 
-        # Read Configs at start
-        config_parser = ConfigParser()
-        config_parser.parse_ftp_file(ftp, path + "/base_vars.js")
+            # Read Configs at start
+            config_parser = ConfigParser()
+            config_parser.parse_ftp_file(ftp, path + "/base_vars.js")
 
-        inverters, data_parser = createInvertersAndDataParsee(config_parser, last_record_time)
+            inverters, data_parser = createInvertersAndDataParsee(config_parser, last_record_time)
 
-        importFileCounter = 0
-        fileCounter = 0
-        fileList = ftp.nlst(path)
-        filteredMinFileList = list(filter(lambda filename: is_import_min_file(filename, last_record_time), fileList))
-        filteredMinFileList.sort()
-        filteredDayFileList = list(filter(lambda filename: is_import_day_file(filename, last_record_time), fileList))
-        allFiles = filteredMinFileList + filteredDayFileList
-        for file in allFiles:
-            fileCounter += 1
-            fileName = os.path.basename(file)
-            logging.debug(f"Read file {fileName}. {fileCounter}/{len(fileList)}")
-            data_parser.parse_ftp_file(ftp, path + "/" + fileName)
-            importFileCounter += 1
-            if importFileCounter >= 50:
-                writeDataToinfluxDb(inverters, influx_host, influx_port, influx_org, influx_bucket, influx_token)
-                importFileCounter = 0
-                inverters, data_parser = createInvertersAndDataParsee(config_parser, last_record_time)
-        writeDataToinfluxDb(inverters, influx_host, influx_port, influx_org, influx_bucket, influx_token)
+            importFileCounter = 0
+            fileCounter = 0
+            fileList = ftp.nlst(path)
+            filteredMinFileList = list(filter(lambda filename: is_import_min_file(filename, last_record_time), fileList))
+            filteredMinFileList.sort()
+            filteredDayFileList = list(filter(lambda filename: is_import_day_file(filename, last_record_time), fileList))
+            allFiles = filteredMinFileList + filteredDayFileList
+            for file in allFiles:
+                fileCounter += 1
+                fileName = os.path.basename(file)
+                logging.debug(f"Read file {fileName}. {fileCounter}/{len(fileList)}")
+                data_parser.parse_ftp_file(ftp, path + "/" + fileName)
+                importFileCounter += 1
+                if importFileCounter >= 50:
+                    writeDataToinfluxDb(inverters, influx_host, influx_port, influx_org, influx_bucket, influx_token)
+                    importFileCounter = 0
+                    inverters, data_parser = createInvertersAndDataParsee(config_parser, last_record_time)
+            writeDataToinfluxDb(inverters, influx_host, influx_port, influx_org, influx_bucket, influx_token)
+    except socket.error as e:
+        if e.errno == 111:
+            print("Connection refused. The FTP server may not be running.")
+        else:
+            print(f"Socket error: {e}")
+        pass
+    except error_perm as e:
+        print(f"FTP permission error: {e}")
+        pass
+    except EOFError:
+        print("EOFError: The connection was closed unexpectedly.")
+        pass
 
 def createInvertersAndDataParsee(config_parser, last_record_time):
     inverters = config_parser.get_inverters()
