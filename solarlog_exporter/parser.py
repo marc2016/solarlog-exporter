@@ -189,6 +189,9 @@ class DataParser(Parser):
         parts = record.split("|")
         date_time = parts[0]
 
+        if len(parts)-1 > len(self._inverters):
+            return
+
         for i in range(1, len(parts)):
             values = parts[i].split(";")
             # AC Leistung; DC String 1; DC String 2; AC Tagesertrag; DC V String 1;DC V String 2; Temperatur
@@ -206,6 +209,8 @@ class DataParser(Parser):
                     self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
                     index = index + 1
             elif file_type == FileType.DAY:
+                if len(values < 2):
+                    continue
                 datapoint = DayDatapoint(date_time, values[0], values[1])
                 self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
             else:
