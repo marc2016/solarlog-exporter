@@ -209,7 +209,7 @@ class DataParser(Parser):
                     self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
                     index = index + 1
             elif file_type == FileType.DAY:
-                if len(values < 2):
+                if len(values) < 2:
                     continue
                 datapoint = DayDatapoint(date_time, values[0], values[1])
                 self._inverters.get_inverter(i - 1).add_datapoint(datapoint, self._last_record_time)
