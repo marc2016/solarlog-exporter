@@ -189,7 +189,7 @@ class DataParser(Parser):
         parts = record.split("|")
         date_time = parts[0]
 
-        if len(parts)-1 > len(self._inverters):
+        if len(parts)-1 > len(self._inverters.inverters):
             return
 
         for i in range(1, len(parts)):
