@@ -5,6 +5,7 @@ from ftplib import FTP, error_perm
 import socket
 from time import sleep
 from typing import Set
+import time
 
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -87,7 +88,23 @@ def start_ftp_import(
     query_api = client.query_api()
 
     inverters = None
-    last_record_time = get_last_record_time_influxdb(query_api, influx_bucket)
+
+    # Retry mechanism for getting last_record_time
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            last_record_time = get_last_record_time_influxdb(query_api, influx_bucket)
+            break  # Success
+        except Exception as e:
+            logging.error(f"Attempt {attempt + 1} to get last_record_time failed: {e}")
+            if attempt < max_retries - 1:
+                logging.info("Waiting 1 minute before retrying...")
+                time.sleep(60)
+            else:
+                logging.error("All retries to get last_record_time failed.")
+                client.close()
+                raise
+
     client.close()
     logging.debug("Starting..")
     logging.debug("Used directory: %s", path)
