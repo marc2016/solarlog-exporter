@@ -11,5 +11,5 @@ python-dotenv~=0.15.0
 setuptools~=54.0.0
 click~=8.0.1
 watchdog~=2.1.2
-influxdb-client[ciso]==1.44.0
+influxdb-client==1.44.0
 six==1.16.0

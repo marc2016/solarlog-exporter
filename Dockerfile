@@ -1,4 +1,4 @@
-FROM python:3.8-slim as base
+FROM python:3.11-slim as base
 MAINTAINER Christoph Herb <ch.herb@gmx.de>
 
 ARG APP_NAME=solarlog_exporter
